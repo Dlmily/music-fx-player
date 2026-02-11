@@ -7,17 +7,20 @@
 ## 快速上手
 
 ### Termux
-- 1.首先下载Termux ，找到符合您手机配置的apk文件（如果您的手机是在2020年以后购买的，那就选择带有arm64文件名的apk），下载并安装，接着打开应用，然后输入
+1. 首先下载[Termux](https://github.com/termux/termux-app/releases) ，找到符合您手机配置的apk文件（如果您的手机是在2020年以后购买的，那就选择带有arm64文件名的apk），下载并安装，接着打开应用，然后输入
 ```bash
 termux-setup-storage
 ```
 并回车(也就是换行)。执行后，系统会弹出一个权限请求，请点击“允许”来获取存储权限。
 
-- 2.下载文件2.py，并通过文件管理器获取到这个文件所处的目录位置并复制它备用，在Termux输入： `cd+空格+复制的目录`然后回车。
+2. 下载文件v.py、effects.py，并通过文件管理器获取到这个文件所处的目录位置并复制它备用。在Termux输入：
+```bash
+cd+空格+复制的目录
+```
+然后回车。
+> 注：文件所处的目录位置就是下载的文件所在的地方，比如：/storage/emulated/0/Download/
 
-> 注：文件所处的目录位置就是下载的文件所在的地方，比如“/storage/emulated/0/Download/”
-
-- 3.在Termux中依次输入安装命令并回车运行：
+3. 在Termux中依次输入安装命令并回车运行：
 ```bash
 # 换源
 sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list
@@ -102,11 +105,13 @@ python effects.py [音频文件路径]
 
 ## 注意事项
 
-1.**Windows用户**需要手动配置ChromeDriver路径
+1. **Windows用户**需要手动配置ChromeDriver路径
 
 ## 常见问题
 
-> 待补充...
+1.`此程序有什么优势？`
+
+我们做到了其他命令行播放器所没有的音效功能，整个程序占用存储极小，对低端设备友好，且文档简单易懂。
 
 ## 免责声明
 
