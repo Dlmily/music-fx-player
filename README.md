@@ -7,7 +7,21 @@
 ## 快速上手
 
 ### Termux
+- 1.首先下载Termux ，找到符合您手机配置的apk文件（如果您的手机是在2020年以后购买的，那就选择带有arm64文件名的apk），下载并安装，接着打开应用，然后输入
 ```bash
+termux-setup-storage
+```
+并回车(也就是换行)。执行后，系统会弹出一个权限请求，请点击“允许”来获取存储权限。
+
+- 2.下载文件2.py，并通过文件管理器获取到这个文件所处的目录位置并复制它备用，在Termux输入： `cd+空格+复制的目录`然后回车。
+
+> 注：文件所处的目录位置就是下载的文件所在的地方，比如“/storage/emulated/0/Download/”
+
+- 3.在Termux中依次输入安装命令并回车运行：
+```bash
+# 换源
+sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list
+
 # 更新库
 pkg update && pkg upgrade
 
@@ -106,7 +120,7 @@ python effects.py [音频文件路径]
 
 　　使用即视为同意以上声明。开发者保留对此声明的最终解释权。
 
-## 了解新产品
+## 了解其他产品
 
 [DL报刊论坛](https://dlbkltos.s7123.xyz/)
 
