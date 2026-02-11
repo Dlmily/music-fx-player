@@ -100,7 +100,7 @@ python effects.py [音频文件路径]
 ## 文件说明
 
 - **v.py** - 主播放器程序
-- **effects.py** - 音效引擎V6模块（AI写，本人不懂）
+- **effects.py** - 音效引擎V6模块
 - **sound_effects_config.json** - 音效设置保存文件（自动生成）
 
 ## 注意事项
