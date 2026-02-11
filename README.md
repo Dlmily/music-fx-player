@@ -1,2 +1,135 @@
-# music-fx-player
-一款自带专业音效引擎的命令行网易云音乐播放器
+# 网易云音乐播放器 + 音效引擎V6
+
+给你纯粹的网易云，大幅度减少性能开销
+音效引擎V6与网易云均衡器音效相似度90%以上
+会稳定更新，感兴趣的可以加star和watching
+
+## 快速上手
+
+### Termux
+```bash
+# 更新库
+pkg update && pkg upgrade
+
+# 安装基础依赖
+pkg install python python-pip ffmpeg mpv
+
+# 安卓编译优化库
+pkg install tur-repo && pkg install python-cryptography
+
+# 安装 X11 仓库（提供 Chromium 运行所需的底层库）
+pkg install x11-repo
+
+# 安装Chromium和ChromeDriver
+pkg install chromium chromedriver
+
+# 安装Python库
+pip install selenium requests pydub numpy scipy rich readchar
+
+# 安装图片查看工具
+pkg install chafa
+```
+
+### Windows
+```bash
+# 1. 安装Python库
+pip install selenium requests pydub numpy scipy rich readchar
+
+# 2. 安装MPV播放器
+# 从 https://mpv.io/installation/ 下载并安装
+
+# 3. 安装Chrome和ChromeDriver
+# Chrome: https://www.google.com/chrome/
+# ChromeDriver: https://chromedriver.chromium.org/
+
+# 4. 设置环境变量
+# 将ChromeDriver路径添加到系统PATH
+```
+
+### macOS
+```bash
+# 使用Homebrew安装依赖
+brew install python3 mpv chromedriver
+
+# 安装Python库
+pip3 install selenium requests pydub numpy scipy rich readchar
+
+# 安装Chrome
+brew install --cask google-chrome
+```
+
+### Linux (Ubuntu/Debian)
+```bash
+# 安装系统依赖
+sudo apt update
+sudo apt install python3-pip mpv chromium-chromedriver chafa -y
+
+# 安装Python库
+pip3 install selenium requests pydub numpy scipy rich readchar
+```
+
+## 运行程序
+
+- 主程序
+```bash
+python v.py
+```
+
+- 音效设置界面 (单独使用)
+```bash
+python effects.py [音频文件路径]
+```
+
+## 文件说明
+
+- **v.py** - 主播放器程序
+- **effects.py** - 音效引擎V6模块（AI写，本人不懂）
+- **sound_effects_config.json** - 音效设置保存文件（自动生成）
+
+## 注意事项
+
+1.**Windows用户**需要手动配置ChromeDriver路径
+
+## 常见问题
+
+> 待补充...
+
+## 免责声明
+
+　　本项目（网易云音乐播放器 + 音效引擎）仅供个人学习、技术研究使用，严禁用于任何商业或非法用途。
+
+　　项目中的搜索功能通过模拟浏览器访问公开网页获取信息，未对目标服务器造成恶意压力。使用者应遵守相关网站的使用协议及法律法规，禁止高频请求或大规模抓取。因使用本软件导致的任何访问限制、法律纠纷由使用者自行承担。
+
+　　代码中的音效预设名称（如“鲸云空间”“沉浸环绕”等）仅用于描述听感风格，与任何商业音效品牌或产品无关。音效算法基于公开的 DSP 知识编写，不包含任何反编译、逆向工程代码。若涉及第三方专利技术特征，请使用者自行核实并承担相关责任。
+
+　　本软件不提供任何音乐文件存储、分发功能，仅作为接口工具播放用户主动获取的网络链接。用户必须确保所播放的内容已获得合法授权，因播放受版权保护内容而产生的一切后果由用户本人承担。
+
+　　使用即视为同意以上声明。开发者保留对此声明的最终解释权。
+
+## 了解新产品
+
+[DL报刊论坛](https://dlbkltos.s7123.xyz/)
+[番茄小说下载器精简版](https://github.com/Dlmily/Tomato-Novel-Downloader-Lite)
+[小米手环七图像转换工具](https://github.com/Dlmily/ImageToMiBand7)
+
+## 关于开源协议
+
+　　本项目采用 **GNU General Public License v3.0（GPL-3.0）** 开源协议。
+
+　　您有权自由使用、修改及分发本软件及其源代码，但必须遵守以下核心条件：
+
+　　**任何形式的公开发布或分发，包括修改后的衍生版本，都必须完整开源，并继续采用 GPL-3.0 协议。**
+
+　　这意味着任何人不得将本软件或其中部分代码用于闭源商业产品或服务。
+
+　　详细条款请参阅根目录下的 LICENSE 文件。
+
+## 未来发展
+
+- 添加歌单导入功能
+- 添加移动歌曲进度
+- 添加更好的错误处理（因为清屏原因，错误信息也一并清除了）
+- 添加声音平衡
+- 修复返回时在主页面的输入没办法显示
+- 修复重启终端音乐会继续播放
+- 添加在歌曲播放页中不中断播放修改音效
