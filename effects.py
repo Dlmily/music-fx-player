@@ -1,11 +1,14 @@
 import os
 import sys
 import json
+import threading
+import time
 import numpy as np
 from scipy import signal
 from scipy.io import wavfile
 from pydub import AudioSegment
-# 尝试导入 UI 组件，如果被 v.py 调用时没装这些库也不影响核心处理
+
+# 尝试导入 UI 和音频库
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -14,8 +17,10 @@ try:
     from rich.live import Live
     from rich.table import Table
     import readchar
-except ImportError:
-    pass
+    import pyaudio
+except ImportError as e:
+    print(f"缺少依赖库: {e}")
+    print("请运行: pip install rich readchar pyaudio numpy scipy pydub")
 
 # 配置持久化路径
 CONFIG_FILE = "sound_effects_config.json"
@@ -39,21 +44,23 @@ PRESET_DATA = {
 }
 
 class UltimateAudioEngine:
-    def __init__(self, file_path=None):
-        self.samples = None
-        self.sr = 44100
-        if file_path and os.path.exists(file_path):
-            self.audio = AudioSegment.from_file(file_path)
-            self.sr = self.audio.frame_rate
-            samples = np.array(self.audio.get_array_of_samples())
-            if self.audio.channels == 2:
-                self.samples = samples.reshape((-1, 2)).astype(np.float32)
-            else:
-                self.samples = samples.astype(np.float32)
-                self.samples = np.stack((self.samples, self.samples), axis=1)
+    def __init__(self, sr=44100):
+        self.sr = sr
+        self.settings = {"低音": 50, "高音": 50, "环绕强度": 0, "环绕深度": 0}
+        self.lock = threading.Lock()
         
-        self.lookahead_ms = 10
-        self.lookahead_samples = int(self.lookahead_ms * self.sr / 1000)
+        # 实时处理状态维护
+        self.bass_zi = None
+        self.treble_zi = None
+        self.current_bass_sos = None
+        self.current_treble_sos = None
+        self.side_buffer = np.zeros((int(0.05 * sr),), dtype=np.float32)
+        self.limiter_gain = 1.0
+        self.alpha_rel = np.exp(-1.0 / (100 * self.sr / 1000.0))
+
+    def update_settings(self, new_settings):
+        with self.lock:
+            self.settings.update(new_settings)
 
     def _get_lowshelf_sos(self, fc, gain_db, Q=0.707):
         A = 10**(gain_db / 40)
@@ -81,91 +88,80 @@ class UltimateAudioEngine:
         a2 = (A + 1) - (A - 1) * cs - 2 * np.sqrt(A) * alpha
         return np.array([[b0/a0, b1/a0, b2/a0, 1.0, a1/a0, a2/a0]])
 
-    def apply_limiter(self, data, threshold_db=-0.1):
-        threshold = 32768 * (10**(threshold_db / 20))
-        abs_data = np.abs(data)
-        peak_env = np.max(abs_data, axis=1)
+    def process_chunk(self, chunk):
+        """实时处理音频块 (numpy array, shape=(N, 2), float32)"""
+        with self.lock:
+            settings = self.settings.copy()
         
-        def numpy_max_filter(x, window):
-            padded = np.pad(x, (0, window - 1), mode='edge')
-            shape = (x.size, window)
-            strides = (padded.strides[0], padded.strides[0])
-            views = np.lib.stride_tricks.as_strided(padded, shape=shape, strides=strides)
-            return np.max(views, axis=1)
-
-        future_peaks = numpy_max_filter(peak_env, self.lookahead_samples)
-        gain_reduction = np.ones_like(future_peaks)
-        mask = future_peaks > threshold
-        gain_reduction[mask] = threshold / future_peaks[mask]
+        data = chunk.copy()
         
-        alpha_rel = np.exp(-1.0 / (100 * self.sr / 1000.0)) # 缩短释放时间增加动态
-        smooth_gain = np.ones_like(gain_reduction)
-        curr_g = 1.0
-        for i in range(len(gain_reduction)):
-            g = gain_reduction[i]
-            if g < curr_g: curr_g = g
-            else: curr_g = alpha_rel * curr_g + (1 - alpha_rel) * g
-            smooth_gain[i] = curr_g
-        return data * smooth_gain[:, np.newaxis]
-
-    def process(self, output_path, final_settings):
-        if self.samples is None: return "未加载音频"
-        data = self.samples.copy()
-        
-        # 1. 低音增强 (改为 85Hz，避开人声频段，消除沉闷感)
-        bass_gain = (final_settings["低音"] - 50) / 4.0
+        # 1. 低音增强 (85Hz)
+        bass_gain = (settings["低音"] - 50) / 4.0
         if abs(bass_gain) > 0.1:
             sos = self._get_lowshelf_sos(85, bass_gain)
-            data = signal.sosfilt(sos, data, axis=0)
+            if self.bass_zi is None or not np.array_equal(sos, self.current_bass_sos):
+                if self.bass_zi is None:
+                    self.bass_zi = np.stack([signal.sosfilt_zi(sos)] * 2, axis=1)
+                self.current_bass_sos = sos
+            data, self.bass_zi = signal.sosfilt(sos, data, axis=0, zi=self.bass_zi)
             
-        # 2. 高音增强 (改为 10000Hz，增加清澈度)
-        treble_gain = (final_settings["高音"] - 50) / 4.0
+        # 2. 高音增强 (10000Hz)
+        treble_gain = (settings["高音"] - 50) / 4.0
         if abs(treble_gain) > 0.1:
             sos = self._get_highshelf_sos(10000, treble_gain)
-            data = signal.sosfilt(sos, data, axis=0)
+            if self.treble_zi is None or not np.array_equal(sos, self.current_treble_sos):
+                if self.treble_zi is None:
+                    self.treble_zi = np.stack([signal.sosfilt_zi(sos)] * 2, axis=1)
+                self.current_treble_sos = sos
+            data, self.treble_zi = signal.sosfilt(sos, data, axis=0, zi=self.treble_zi)
 
         # 3. 空间环绕
-        intensity = final_settings["环绕强度"] / 100.0
-        depth = final_settings["环绕深度"]
+        intensity = settings["环绕强度"] / 100.0
+        depth = settings["环绕深度"]
         if intensity > 0:
             left, right = data[:, 0], data[:, 1]
-            mid = (left + right) / 2.0
-            side = (left - right) / 2.0
+            mid, side = (left + right) / 2.0, (left - right) / 2.0
             side = side * (1.0 + intensity * 2.2)
             delay_samples = int((depth / 100.0) * 0.025 * self.sr)
             if delay_samples > 0:
-                delayed = np.zeros_like(side)
-                delayed[delay_samples:] = side[:-delay_samples]
-                side = side + delayed * 0.45
+                combined_side = np.concatenate([self.side_buffer[-delay_samples:], side])
+                side = side + combined_side[:len(side)] * 0.45
+                if len(side) >= len(self.side_buffer): self.side_buffer = side[-len(self.side_buffer):].copy()
+                else:
+                    self.side_buffer = np.roll(self.side_buffer, -len(side))
+                    self.side_buffer[-len(side):] = side
             data = np.stack((mid + side, mid - side), axis=1)
 
-        # 4. 增益补偿与限幅 (提升至1.4倍，解决音量小的问题)
-        data = data * 1.4 
-        data = self.apply_limiter(data)
-        
-        processed = np.clip(data, -32768, 32767).astype(np.int16)
-        self.audio._spawn(processed.tobytes()).export(output_path, format="mp3", bitrate="320k")
-        return f"处理成功"
+        # 4. 增益补偿与实时限幅
+        data = data * 1.4
+        threshold = 1.0
+        for i in range(len(data)):
+            peak = np.max(np.abs(data[i]))
+            target_gain = threshold / peak if peak > threshold else 1.0
+            if target_gain < self.limiter_gain: self.limiter_gain = target_gain
+            else: self.limiter_gain = self.alpha_rel * self.limiter_gain + (1 - self.alpha_rel) * target_gain
+            data[i] *= self.limiter_gain
+            
+        return np.clip(data, -1.0, 1.0)
 
 class UltimateTUI:
-    def __init__(self, input_file=None):
-        self.input_file = input_file
-        self.engine = UltimateAudioEngine(input_file) if input_file else None
+    def __init__(self, engine):
+        self.engine = engine
         self.presets = list(PRESET_DATA.keys())
-        
-        # 加载持久化配置
         self.config = self.load_config()
         self.preset_idx = self.presets.index(self.config.get("preset", "无"))
         self.overlay = self.config.get("overlay", {"低音": 50, "高音": 50, "环绕强度": 50, "环绕深度": 50})
-        
         self.overlay_keys = list(self.overlay.keys())
         self.overlay_idx = 0
         self.mode = "PRESET"
-        self.msg = "Tab: 切换 | WASD: 调节 | Enter: 保存并应用"
+        self.msg = "Tab: 切换 | WASD: 调节 | Q: 退出"
+        self.sync_to_engine()
 
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f: return json.load(f)
+            try:
+                with open(CONFIG_FILE, 'r') as f: return json.load(f)
+            except: pass
         return {}
 
     def save_config(self):
@@ -182,6 +178,9 @@ class UltimateTUI:
             "环绕深度": d + (self.overlay["环绕深度"] - 50),
         }
 
+    def sync_to_engine(self):
+        self.engine.update_settings(self.get_final_settings())
+
     def draw(self):
         p_table = Table(show_header=False, box=None, expand=True)
         for i, p in enumerate(self.presets):
@@ -192,14 +191,13 @@ class UltimateTUI:
         final = self.get_final_settings()
         for i, k in enumerate(self.overlay_keys):
             is_f = (i == self.overlay_idx and self.mode == "OVERLAY")
-            val = self.overlay[k]
-            f_val = final[k]
+            val, f_val = self.overlay[k], final[k]
             bar = "█" * int(val / 8.3) + "░" * (12 - int(val / 8.3))
             o_panels.append(Panel(f"\n [yellow]{bar}[/yellow] {val}% \n [dim]输出: {f_val}%[/dim]", title=f"[bold]{k}[/bold]" if is_f else k, border_style="yellow" if is_f else "bright_black"))
 
         layout = Layout()
         layout.split_column(
-            Layout(Panel(f"🎵 音效 V6 设置中心 | 请调整您的专属听感", style="white on blue"), size=3),
+            Layout(Panel(f"🎵 音效 V7 设置中心 | 请调整您的专属听感", style="white on blue"), size=3),
             Layout(name="main")
         )
         layout["main"].split_row(
@@ -227,14 +225,31 @@ class UltimateTUI:
                     elif key in (readchar.key.DOWN, 's'): self.overlay_idx = (self.overlay_idx + 1) % len(self.overlay_keys)
                     elif key in (readchar.key.LEFT, 'a'): self.overlay[self.overlay_keys[self.overlay_idx]] = max(0, self.overlay[self.overlay_keys[self.overlay_idx]] - 5)
                     elif key in (readchar.key.RIGHT, 'd'): self.overlay[self.overlay_keys[self.overlay_idx]] = min(100, self.overlay[self.overlay_keys[self.overlay_idx]] + 5)
-                
-                if key == readchar.key.ENTER:
-                    self.save_config()
-                    if self.input_file:
-                        self.engine.process(".cache_fx.mp3", self.get_final_settings())
-                    break
+                self.sync_to_engine()
+                self.save_config()
                 if key.lower() == 'q': break
 
+def audio_callback(in_data, frame_count, time_info, status, engine=None):
+    audio_data = np.frombuffer(in_data, dtype=np.float32).reshape(-1, 2)
+    processed_data = engine.process_chunk(audio_data)
+    return (processed_data.tobytes(), pyaudio.paContinue)
+
+def main():
+    RATE = 44100
+    engine = UltimateAudioEngine(sr=RATE)
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paFloat32, channels=2, rate=RATE, input=True, output=True, 
+                    frames_per_buffer=1024, stream_callback=lambda *args: audio_callback(*args, engine=engine))
+    
+    stream.start_stream()
+    try:
+        UltimateTUI(engine).run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+
 if __name__ == "__main__":
-    file = sys.argv[1] if len(sys.argv) > 1 else None
-    UltimateTUI(file).run()
+    main()
