@@ -29,7 +29,13 @@ sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/t
 pkg update && pkg upgrade
 
 # 安装基础依赖
-pkg install python python-pip ffmpeg mpv
+pkg install python python-pip ffmpeg mpv 
+
+# 安装构建工具和 C 编译器
+pkg install clang fftw make pkg-config
+
+# 安装 pyaudio 依赖
+pkg install portaudio
 
 # 安卓编译优化库
 pkg install tur-repo && pkg install python-cryptography
@@ -41,7 +47,7 @@ pkg install x11-repo
 pkg install chromium chromedriver
 
 # 安装Python库
-pip install selenium requests pydub numpy scipy rich readchar
+pip install selenium requests pydub numpy scipy rich readchar pyaudio
 
 # 安装图片查看工具
 pkg install chafa
@@ -50,7 +56,7 @@ pkg install chafa
 ### Windows
 ```bash
 # 1. 安装Python库
-pip install selenium requests pydub numpy scipy rich readchar
+pip install selenium requests pydub numpy scipy rich readchar pyaudio
 
 # 2. 安装MPV播放器
 # 从 https://mpv.io/installation/ 下载并安装
@@ -69,7 +75,7 @@ pip install selenium requests pydub numpy scipy rich readchar
 brew install python3 mpv chromedriver
 
 # 安装Python库
-pip3 install selenium requests pydub numpy scipy rich readchar
+pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
 
 # 安装Chrome
 brew install --cask google-chrome
@@ -82,7 +88,7 @@ sudo apt update
 sudo apt install python3-pip mpv chromium-chromedriver chafa -y
 
 # 安装Python库
-pip3 install selenium requests pydub numpy scipy rich readchar
+pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
 ```
 
 ## 运行程序
@@ -116,8 +122,9 @@ python v.py
 
 打开网易云音乐，找到你想要播放的歌单，点击分享，在弹框中点击复制链接，你会得到如：
 > 分享歌单: Be infatuated with Dlmily https://music.163.com/m/playlist?id=12824371087&creatorId=2070898638
-这样的链接，其中“12824371087”就是歌单id。
+这样的链接。
 
+其中“12824371087”就是歌单id。
 
 ## 免责声明
 
