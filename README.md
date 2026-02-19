@@ -29,28 +29,10 @@ sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/t
 pkg update && pkg upgrade
 
 # 安装基础依赖
-pkg install python python-pip ffmpeg mpv 
-
-# 安装构建工具和 C 编译器
-pkg install clang fftw make pkg-config
-
-# 安装 pyaudio 依赖
-pkg install portaudio
-
-# 安卓编译优化库
-pkg install tur-repo && pkg install python-cryptography
-
-# 安装 X11 仓库（提供 Chromium 运行所需的底层库）
-pkg install x11-repo
-
-# 安装Chromium和ChromeDriver
-pkg install chromium chromedriver
+pkg install python python-pip ffmpeg mpv clang fftw make pkg-config portaudio tur-repo python-cryptography x11-repo chromium chromedriver chafa
 
 # 安装Python库
 pip install selenium requests pydub numpy scipy rich readchar pyaudio
-
-# 安装图片查看工具
-pkg install chafa
 ```
 
 ### Windows
