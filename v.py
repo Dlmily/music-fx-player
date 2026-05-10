@@ -447,7 +447,8 @@ def play_song(song_id, preload_next_song_id=None):
             ['mpv', '--no-video', '--really-quiet', f'--start={int(start_sec)}', '-'],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            start_new_session=True  # 脱离终端会话，防止熄屏暂停
         )
 
     def feed_audio_with_effects(player, audio_data, engine_ref):
