@@ -66,12 +66,14 @@ pip install selenium requests pydub numpy scipy rich readchar pyaudio
 # 2. 安装MPV播放器
 # 从 https://mpv.io/installation/ 下载并安装
 
-# 3. 安装Chrome和ChromeDriver
-# Chrome: https://www.google.com/chrome/
-# ChromeDriver: https://chromedriver.chromium.org/
+# 3. 安装Firefox浏览器
+# 下载地址：https://www.mozilla.org/firefox/
 
-# 4. 设置环境变量
-# 将ChromeDriver路径添加到系统PATH
+# 4. 安装geckodriver
+pip install webdriver-manager
+
+# 5. 可选：安装封面查看工具
+pip install Pillow
 ```
 
 ### macOS
