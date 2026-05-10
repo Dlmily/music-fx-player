@@ -11,14 +11,8 @@ import traceback
 import io
 import threading
 import random
+import urllib3
 from concurrent.futures import ThreadPoolExecutor
-from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
 
 try:
     import effects
@@ -36,6 +30,7 @@ else:
 
 current_player = None
 should_play_next = True
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def cleanup():
     global current_player
@@ -48,13 +43,6 @@ def cleanup():
         os.system('stty sane 2>/dev/null')
 
 atexit.register(cleanup)
-
-def get_default_paths():
-    if SYSTEM == "Linux" and "com.termux" in os.environ.get("PREFIX", ""):
-        return '/data/data/com.termux/files/usr/bin/firefox', '/data/data/com.termux/files/usr/bin/geckodriver'
-    return None, None
-
-FIREFOX_BIN, GECKO_DRIVER = get_default_paths()
 
 CONFIG_FILE = "app_settings.json"
 CACHE_FILE = "playlists_cache.json"
@@ -149,7 +137,7 @@ def clear_screen():
     if SYSTEM != "Windows":
         os.system('stty sane 2>/dev/null')
     os.system('cls' if SYSTEM == "Windows" else 'clear')
-    print("欢迎使用网易云音乐播放器 v2.1")
+    print("欢迎使用网易云音乐播放器 v2.2")
     print("开发者：Dlmily")
     print("-" * 50)
     print("[1] 获取歌单内歌曲")
@@ -303,7 +291,7 @@ def show_comment_ui(song_id, metadata):
         print("="*50)
         url = f"https://zm.armoe.cn/comment/music?id={song_id}&limit={limit}&offset={page*limit}"
         try:
-            res = requests.get(url, timeout=5).json()
+            res = requests.get(url, timeout=5, verify=False).json()
             comments = res.get('hotComments', []) if page == 0 else res.get('comments', [])
             if not comments: print("\n> 暂无更多评论。")
             for c in comments:
@@ -537,7 +525,7 @@ def play_song(song_id, preload_next_song_id=None):
     print(f"👤 歌手: {metadata['artist']}")
     print(f"✍️ 歌词翻译: {metadata['translator']}")
     print(f"⚙️  当前歌曲模式：{CONFIG['play_mode']}")
-    print("\n暂停[K]  模式[G]  评论[C]  音效[E]  跳转[J]  返回[B]")
+    print("\n暂停[K]  模式[G]  评论[C]  音效[E]  跳转[J]  上一首[A]  下一首[L]  返回[B]")
     print("=" * 50)
 
     for stored in lyric_history:
@@ -557,7 +545,7 @@ def play_song(song_id, preload_next_song_id=None):
             print(f"👤 歌手: {metadata['artist']}")
             print(f"✍️ 歌词翻译: {metadata['translator']}")
             print(f"⚙️  当前歌曲模式：{CONFIG['play_mode']}")
-            print("\n暂停[K]  模式[G]  评论[C]  音效[E]  跳转[J]  返回[B]")
+            print("\n暂停[K]  模式[G]  评论[C]  音效[E]  跳转[J]  上一首[A]  下一首[L]  返回[B]")
             print("=" * 50)
             for stored in lyric_history:
                 write_lyric(stored)
@@ -669,6 +657,19 @@ def play_song(song_id, preload_next_song_id=None):
                     print("- 格式错误，请输入 数字*数字 或纯秒数。")
                     time.sleep(1)
                     need_refresh = True
+
+            elif k == 'a':
+                if len(current_playlist) > 1:
+                    current_song_idx = (current_song_idx - 1) % len(current_playlist)
+                    manual_next_song_id = current_playlist[current_song_idx]['id']
+                    manual_skip = True
+                    break
+            elif k == 'l':
+                if len(current_playlist) > 1:
+                    current_song_idx = (current_song_idx + 1) % len(current_playlist)
+                    manual_next_song_id = current_playlist[current_song_idx]['id']
+                    manual_skip = True
+                    break
 
             elif k == 'b':
                 should_play_next = False
@@ -939,72 +940,80 @@ def playlist_flow():
         show_songs_and_play(playlist_id, songs)
 
 def search_flow():
+    """使用 no0a API 搜索歌曲并播放"""
     clear_screen()
-    options = Options()
-    if FIREFOX_BIN: options.binary_location = FIREFOX_BIN
-    options.add_argument('-headless')
+    keyword = input("- 搜歌名: ").strip()
+    if not keyword:
+        print("搜索关键词不能为空")
+        time.sleep(2)
+        return
 
-    service = Service(GECKO_DRIVER) if GECKO_DRIVER else Service()
+    print("- 正在搜索...")
     try:
-        driver = webdriver.Firefox(service=service, options=options)
-        wait = WebDriverWait(driver, 15)
-        driver.get("https://music.gdstudio.org/")
-
-        search_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '歌曲搜索')]")))
-        driver.execute_script("arguments[0].click();", search_btn)
-
-        keyword = input("\n- 搜歌名: ")
-        search_input = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input.search-input, .layui-layer-content input")))
-        search_input.send_keys(keyword + Keys.ENTER)
-
-        try:
-            agree = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '同意并继续')]")))
-            driver.execute_script("arguments[0].click();", agree)
-        except: pass
-
-        time.sleep(3)
-
-        rows = driver.find_elements(By.CSS_SELECTOR, ".list-item, tr")
-        valid_songs = []
-        print("\n" + "="*40)
-        idx = 1
-        for row in rows:
-            text = row.text.strip()
-            if not text or "歌曲" in text: continue
-            parts = [p.strip() for p in text.split('\n') if p.strip()]
-            if len(parts) >= 4:
-                print(f"[{idx:<2}] {parts[2]} - {parts[3]}")
-                valid_songs.append(row)
-                idx += 1
-
-        choice = input("\n- 输入序号播放: ")
-        target_idx = int(choice) - 1
-
-        if 0 <= target_idx < len(valid_songs):
-            print("- 正在抓取 ID 并获取元数据...")
-            driver.execute_script("arguments[0].click();", valid_songs[target_idx])
-
-            song_id = None
-            for _ in range(20):
-                logs = driver.get_log('performance')
-                for entry in logs:
-                    log_data = json.loads(entry['message'])['message']
-                    if log_data.get('method') == 'Network.requestWillBeSent':
-                        post_data = log_data['params']['request'].get('postData', '')
-                        match = re.search(r'id=(\d+)', post_data)
-                        if match:
-                            song_id = match.group(1); break
-                if song_id: break
-                time.sleep(0.5)
-
-            driver.quit()
-            if song_id:
-                current_playlist = []
-                current_song_idx = 0
-                play_song(song_id, None)
+        api_url = f"https://api.no0a.cn/api/cloudmusic/search/{keyword}"
+        resp = requests.get(api_url, timeout=10)
+        data = resp.json()
     except Exception as e:
-        handle_error(e, "搜索流程出错")
-        if 'driver' in locals(): driver.quit()
+        handle_error(e, "搜索请求失败，请检查网络。")
+        return
+
+    if data.get("status") != 1:
+        print(f"搜索失败: {data.get('message', '未知错误')}")
+        time.sleep(2)
+        return
+
+    results = data.get("results", [])
+    if not results:
+        print("未找到相关歌曲。")
+        time.sleep(2)
+        return
+
+    # 构建当前播放列表（将搜索结果作为歌单，支持上下曲切换）
+    global current_playlist, current_song_idx
+    current_playlist = []
+    for item in results:
+        song_id = item.get("id")
+        song_name = item.get("name", "未知歌曲")
+        artists = [a.get("name", "未知") for a in item.get("artist", [])]
+        artist_str = ", ".join(artists) if artists else "未知歌手"
+        current_playlist.append({"id": song_id, "name": song_name})
+
+    # 显示搜索结果
+    clear_screen()
+    print(f"\n- 搜索结果（{len(results)} 首歌曲）:")
+    print("=" * 60)
+    for idx, item in enumerate(results):
+        song_name = item.get("name", "未知歌曲")
+        artists = [a.get("name", "未知") for a in item.get("artist", [])]
+        artist_str = ", ".join(artists) if artists else "未知歌手"
+        print(f"[{idx+1:<3}] {song_name}")
+        print(f"      歌手: {artist_str}")
+        print("-" * 60)
+
+    choice = input("\n- 输入序号播放 (B 返回): ").strip()
+    if choice.lower() == 'b':
+        return
+
+    try:
+        target_idx = int(choice) - 1
+        if 0 <= target_idx < len(results):
+            current_song_idx = target_idx
+            song_id = current_playlist[target_idx]['id']
+
+            # 预加载下一首（如果开启且有多首）
+            if CONFIG["enable_preload"] and len(current_playlist) > 1:
+                next_idx = (target_idx + 1) % len(current_playlist)
+                next_song_id = current_playlist[next_idx]['id']
+            else:
+                next_song_id = None
+
+            play_song(song_id, next_song_id)
+        else:
+            print("序号无效")
+            time.sleep(2)
+    except ValueError:
+        print("请输入有效的数字")
+        time.sleep(2)
 
 def main():
     load_config()

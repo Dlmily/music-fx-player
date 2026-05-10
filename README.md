@@ -39,20 +39,8 @@ pkg install clang fftw make pkg-config
 # 安装 pyaudio 依赖
 pkg install portaudio
 
-# 安卓编译优化库
-pkg install tur-repo && pkg install python-cryptography
-
-# 安装 X11 仓库
-pkg install x11-repo
-
-# 安装 Firefox 浏览器
-pkg install firefox
-
 # 安装 Python 库
-pip install selenium requests pydub numpy scipy rich readchar pyaudio
-
-# 安装 webdriver-manager，自动下载并管理 geckodriver
-pip install webdriver-manager
+pip install requests urllib3 pydub numpy scipy rich readchar pyaudio
 
 # 安装图片查看工具
 pkg install chafa
@@ -60,29 +48,23 @@ pkg install chafa
 
 ### Windows
 ```bash
-# 1. 安装Python库
-pip install selenium requests pydub numpy scipy rich readchar pyaudio
+# 安装Python库
+pip install requests urllib3 pydub numpy scipy rich readchar pyaudio
 
-# 2. 安装MPV播放器
+# 安装MPV播放器
 # 从 https://mpv.io/installation/ 下载并安装
 
-# 3. 安装Firefox浏览器
-# 下载地址：https://www.mozilla.org/firefox/
-
-# 4. 安装geckodriver
-pip install webdriver-manager
-
-# 5. 可选：安装封面查看工具
+# 可选：安装封面查看工具
 pip install Pillow
 ```
 
 ### macOS
 ```bash
 # 使用Homebrew安装依赖
-brew install python3 mpv firefox geckodriver
+brew install python3 mpv
 
 # 安装Python库
-pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
+pip3 install selenium requests urllib3 pydub numpy scipy rich readchar pyaudio
 
 # 封面渲染工具（可选）
 brew install chafa
@@ -92,10 +74,10 @@ brew install chafa
 ```bash
 # 安装系统依赖
 sudo apt update
-sudo apt install python3-pip mpv firefox firefox-geckodriver chafa -y
+sudo apt install python3-pip mpv chafa -y
 
 # 安装Python库
-pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
+pip3 install requests urllib3 pydub numpy scipy rich readchar pyaudio
 ```
 
 ## 运行程序
@@ -144,8 +126,6 @@ python v.py
 ## 免责声明
 
 　　本项目（网易云音乐播放器 + 音效引擎）仅供个人学习、技术研究使用，严禁用于任何商业或非法用途。
-
-　　项目中的搜索功能通过模拟浏览器访问公开网页获取信息，未对目标服务器造成恶意压力。使用者应遵守相关网站的使用协议及法律法规，禁止高频请求或大规模抓取。因使用本软件导致的任何访问限制、法律纠纷由使用者自行承担。
 
 　　项目调用了第三方公开API，这些接口并非本项目维护或控制，其稳定性、准确性及合法性由接口提供方负责。本项目仅作为技术演示调用，不存储、缓存或分发任何来自这些接口的数据，未对目标服务器造成恶意压力，禁止高频请求或大规模抓取。若相关接口涉及版权内容或违反服务条款，请权利人直接联系接口提供方处理。
 
