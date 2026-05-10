@@ -1,7 +1,9 @@
 # 网易云音乐播放器 + 音效引擎V7
 
 给你纯粹的网易云，大幅度减少性能开销
+
 音效引擎与网易云均衡器音效相似度90%以上
+
 会稳定更新，感兴趣的可以加star和watching
 
 ## 快速上手
@@ -29,7 +31,7 @@ sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/t
 pkg update && pkg upgrade
 
 # 安装基础依赖
-pkg install python python-pip ffmpeg mpv 
+pkg install python python-pip ffmpeg mpv
 
 # 安装构建工具和 C 编译器
 pkg install clang fftw make pkg-config
@@ -40,14 +42,17 @@ pkg install portaudio
 # 安卓编译优化库
 pkg install tur-repo && pkg install python-cryptography
 
-# 安装 X11 仓库（提供 Chromium 运行所需的底层库）
+# 安装 X11 仓库
 pkg install x11-repo
 
-# 安装Chromium和ChromeDriver
-pkg install chromium chromedriver
+# 安装 Firefox 浏览器
+pkg install firefox
 
-# 安装Python库
+# 安装 Python 库
 pip install selenium requests pydub numpy scipy rich readchar pyaudio
+
+# 安装 webdriver-manager，自动下载并管理 geckodriver
+pip install webdriver-manager
 
 # 安装图片查看工具
 pkg install chafa
@@ -72,20 +77,20 @@ pip install selenium requests pydub numpy scipy rich readchar pyaudio
 ### macOS
 ```bash
 # 使用Homebrew安装依赖
-brew install python3 mpv chromedriver
+brew install python3 mpv firefox geckodriver
 
 # 安装Python库
 pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
 
-# 安装Chrome
-brew install --cask google-chrome
+# 封面渲染工具（可选）
+brew install chafa
 ```
 
 ### Linux (Ubuntu/Debian)
 ```bash
 # 安装系统依赖
 sudo apt update
-sudo apt install python3-pip mpv chromium-chromedriver chafa -y
+sudo apt install python3-pip mpv firefox firefox-geckodriver chafa -y
 
 # 安装Python库
 pip3 install selenium requests pydub numpy scipy rich readchar pyaudio
@@ -102,17 +107,20 @@ python v.py
 
 - **v.py** - 主播放器程序
 - **effects.py** - 音效引擎模块
-- **sound_effects_config.json** - 音效设置保存文件（自动生成）
+- **sound_effects_config.json** - 音效设置保存文件
+- **playlists_cache.json** - 歌单存储文件
+- **app_settings.json** - 设置状态记录文件
+
 
 ## 注意事项
 
-1. **Windows用户**需要手动配置ChromeDriver路径
+暂无
 
 ## 常见问题
 
 1.`此程序有什么优势？`
 
-我们做到了其他命令行播放器所没有的音效功能，整个程序占用存储极小，对低端设备友好，且文档简单易懂。
+我们做到了其他命令行播放器所没有的音效功能，整个程序占用存储、性能损耗极小，对低端设备友好，且文档简单易懂。
 
 2.`我该怎么退出程序？`
 
@@ -122,9 +130,14 @@ python v.py
 
 打开网易云音乐，找到你想要播放的歌单，点击分享，在弹框中点击复制链接，你会得到如：
 > 分享歌单: Be infatuated with Dlmily https://music.163.com/m/playlist?id=12824371087&creatorId=2070898638
-这样的链接。
+>
+>这样的链接。
 
 其中“12824371087”就是歌单id。
+
+4.`为什么歌词出现的时间比歌手唱歌词的时间要快一点？`
+
+这是低端设备中的硬件问题，在如骁龙400左右的机型情况比较明显，硬件稍好一些的机型几乎无感，目前不影响正常使用。
 
 ## 免责声明
 
@@ -134,7 +147,7 @@ python v.py
 
 　　项目调用了第三方公开API，这些接口并非本项目维护或控制，其稳定性、准确性及合法性由接口提供方负责。本项目仅作为技术演示调用，不存储、缓存或分发任何来自这些接口的数据，未对目标服务器造成恶意压力，禁止高频请求或大规模抓取。若相关接口涉及版权内容或违反服务条款，请权利人直接联系接口提供方处理。
 
-　　代码中的音效预设名称（如“鲸云空间”“沉浸环绕”等）仅用于描述听感风格，与任何商业音效品牌或产品无关。音效算法基于公开的 DSP 知识编写，不包含任何反编译、逆向工程代码。若涉及第三方专利技术特征，请使用者自行核实并承担相关责任。
+　　音效算法基于公开的 DSP 知识编写，不包含任何反编译、逆向工程代码。若涉及第三方专利技术特征，请使用者自行核实并承担相关责任。
 
 　　本软件不提供任何音乐文件存储、分发功能，仅作为接口工具播放用户主动获取的网络链接。用户必须确保所播放的内容已获得合法授权，因播放受版权保护内容而产生的一切后果由用户本人承担。
 
@@ -150,13 +163,13 @@ python v.py
 
 ## 关于开源协议
 
-　　本项目采用 **GNU General Public License v3.0（GPL-3.0）** 开源协议。
+　　本项目采用 **Mozilla Public License Version 2.0（MPL-2.0）** 开源协议。
 
 　　您有权自由使用、修改及分发本软件及其源代码，但必须遵守以下核心条件：
 
-　　**任何形式的公开发布或分发，包括修改后的衍生版本，都必须完整开源，并继续采用 GPL-3.0 协议。**
+　　**如果您修改了本项目中任何采用 MPL-2.0 许可的文件，则必须将这些修改后的文件以 MPL-2.0 协议开源；未修改的原文件及您新增的文件，可使用其他许可证（包括闭源）。**
 
-　　这意味着任何人不得将本软件或其中部分代码用于闭源商业产品或服务。
+　　这意味着，您可以在本项目基础上添加闭源的商业模块，只要保持 MPL 文件的修改部分透明即可。
 
 　　详细条款请参阅根目录下的 LICENSE 文件。
 
@@ -174,6 +187,8 @@ python v.py
 - [√]添加在歌曲播放页中不中断播放修改音效
 - [√]预加载下一首，只有一首歌曲播放时除外
 - [√]正确获取歌曲时长
+- [√]添加歌单记忆功能
+- [√]进一步适配小屏终端
 - 修复移动歌曲进度后，歌曲没有正确在相应进度播放
 - 添加上下一首切换
 - 分页功能加入可输入特定页码跳转

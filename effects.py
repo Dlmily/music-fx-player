@@ -267,40 +267,67 @@ class UltimateTUI:
         self.engine.update_settings(self.get_final_settings())
 
     def draw(self):
-        p_table = Table(show_header=False, box=None, expand=True)
+        # 1. 预设列表 - 紧凑化
+        p_table = Table(show_header=False, box=None, expand=True, pad_edge=False)
         for i, p in enumerate(self.presets):
-            style = "bold reverse red" if (i == self.preset_idx and self.mode == "PRESET") else ""
-            p_table.add_row(f" {'> ' if style else '  '}{p} ", style=style)
+            is_selected = (i == self.preset_idx and self.mode == "PRESET")
+            style = "bold reverse red" if is_selected else ""
+            mark = " > " if is_selected else "   "
+            p_table.add_row(f"{mark}{p}", style=style)
 
-        e_table = Table(show_header=False, box=None, expand=True)
+        # 2. 环境列表 - 紧凑化
+        e_table = Table(show_header=False, box=None, expand=True, pad_edge=False)
         for i, e in enumerate(self.envs):
-            style = "bold reverse green" if (i == self.env_idx and self.mode == "ENVIRONMENT") else ""
-            mark = "✓ " if i == self.env_idx else "  "
+            is_selected = (i == self.env_idx and self.mode == "ENVIRONMENT")
+            style = "bold reverse green" if is_selected else ""
+            mark = "✓ " if is_selected else "  "
             e_table.add_row(f"{mark}{e}", style=style)
 
+        # 3. 微调面板 - 合并行，缩短进度条，减少 Padding，促使其在小屏下更易并排显示以节省垂直空间
         o_panels = []
         final = self.get_final_settings()
         for i, k in enumerate(self.overlay_keys):
             is_f = (i == self.overlay_idx and self.mode == "OVERLAY")
             val, f_val = self.overlay[k], final[k]
-            bar = "█" * int(val / 8.3) + "░" * (12 - int(val / 8.3))
-            o_panels.append(Panel(f"\n [yellow]{bar}[/yellow] {val}% \n [dim]输出: {f_val}%[/dim]", 
+            
+            # 进度条缩短为 8 格，去掉空格，节省宽度防止换行
+            bar_len = 10
+            filled = int(val / 12.5)
+            bar = "█" * filled + "░" * (bar_len - filled)
+            
+            # 内容合并为一行： [进度条] 当前值 (输出值)
+            content = f"[yellow]{bar}[/yellow] {val}% \n输出：({f_val}%)"
+            
+            # padding=(0, 1) 减少上下留白，大幅节省垂直空间
+            o_panels.append(Panel(content, 
                                 title=f"[bold]{k}[/bold]" if is_f else k, 
-                                border_style="yellow" if is_f else "bright_black"))
+                                border_style="yellow" if is_f else "bright_black",
+                                padding=(0, 1))) 
 
+        # 4. 底部操作提示 - 缩小 padding，高度独立保障，确保完整显示
+        footer_text = "Tab: 切换模式 | WASD/↑↓: 选择 | ←→: 微调 | Q: 退出"
+        footer_panel = Panel(f"[bold green]操作:[/bold green] {footer_text}", 
+                             border_style="yellow" if self.mode=="OVERLAY" else "white",
+                             padding=(0, 1))   # 减少 padding 节省垂直空间
+
+        # 5. 整体布局 - 标题栏保持简洁，底部高度扩大为 4 防止截断
         layout = Layout()
         layout.split_column(
-            Layout(Panel(f"🎵 音效 V7 + 环境音效 | Tab 切换模式", style="white on blue"), size=3),
+            # 标题栏高度 3 够用，文字精简
+            Layout(Panel("🎵 音效引擎 V7", style="white on blue", padding=(0, 1)), size=3),
             Layout(name="main")
         )
         layout["main"].split_row(
-            Layout(Panel(p_table, title="1. 基准预设", border_style="red" if self.mode=="PRESET" else "white"), ratio=1),
-            Layout(Panel(e_table, title="3. 环境音效", border_style="green" if self.mode=="ENVIRONMENT" else "white"), ratio=1),
+            # Panel padding 设为 0 减少边框占用
+            Layout(Panel(p_table, title="1.基准预设", border_style="red" if self.mode=="PRESET" else "white", padding=(0,0)), ratio=1),
+            Layout(Panel(e_table, title="2.环境音效", border_style="green" if self.mode=="ENVIRONMENT" else "white", padding=(0,0)), ratio=1),
             Layout(name="right", ratio=2)
         )
         layout["right"].split_column(
-            Layout(Columns(o_panels), ratio=2),
-            Layout(Panel(f"\n[bold green]操作:[/bold green] {self.msg}", title="2. 微调叠加", border_style="yellow" if self.mode=="OVERLAY" else "white"), size=5)
+            # Columns 会自动根据宽度调整布局
+            Layout(Columns(o_panels, expand=True), ratio=3),
+            # 底部高度从 3 增加到 4，确保操作提示完整显示
+            Layout(footer_panel, size=5)
         )
         return layout
 
