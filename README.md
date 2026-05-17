@@ -33,23 +33,23 @@ pkg update && pkg upgrade
 # 安装基础依赖
 pkg install python python-pip ffmpeg mpv
 
-# 安装构建工具和 C 编译器
-pkg install clang fftw make pkg-config
+# 安装构建工具和 C 编译器（可选，构建出现报错时可运行，但正常来讲不需要）
+pkg install clang cmake make pkg-config
 
 # 安装 pyaudio 依赖
 pkg install portaudio
 
 # 安装 Python 库
-pip install requests urllib3 pydub numpy scipy rich readchar pyaudio
+pip install requests urllib3 pydub python-numpy python-scipy rich readchar pyaudio
 
-# 安装图片查看工具
+# 安装图片查看工具（可选）
 pkg install chafa
 ```
 
 ### Windows
 ```bash
 # 安装Python库
-pip install requests urllib3 pydub numpy scipy rich readchar pyaudio
+pip install requests urllib3 pydub python-numpy python-scipy rich readchar pyaudio
 
 # 安装MPV播放器
 # 从 https://mpv.io/installation/ 下载并安装
@@ -64,7 +64,7 @@ pip install Pillow
 brew install python3 mpv
 
 # 安装Python库
-pip3 install selenium requests urllib3 pydub numpy scipy rich readchar pyaudio
+pip3 install selenium requests urllib3 pydub python-numpy python-scipy rich readchar pyaudio
 
 # 封面渲染工具（可选）
 brew install chafa
@@ -77,7 +77,7 @@ sudo apt update
 sudo apt install python3-pip mpv chafa -y
 
 # 安装Python库
-pip3 install requests urllib3 pydub numpy scipy rich readchar pyaudio
+pip3 install requests urllib3 pydub python-numpy python-scipy rich readchar pyaudio
 ```
 
 ## 运行程序
