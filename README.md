@@ -56,7 +56,7 @@ pipwin install pyaudio
 
 # 手动下载并加入系统环境变量的系统工具：
 MPV 播放器: 从 https://mpv.io/installation/ 下载 Windows 版本
-- FFmpeg: 从 https://www.gyan.dev/ffmpeg/builds/ 下载 release full 版本
+FFmpeg: 从 https://www.gyan.dev/ffmpeg/builds/ 下载 release full 版本
 (必须将 mpv.exe 和 ffmpeg/bin 目录加入系统的 PATH 环境变量，否则无法播放和获取时长！)
 ```
 
@@ -181,9 +181,9 @@ python v.py
 - [√]添加与其他应用同时播放
 - [√]添加自动判断歌曲是否为vip切换对应的api进行音乐获取
 - [√]添加更好的空间、混响音效
+- [√]添加对vip歌曲的免费播放（2026.5.16：已实现，目前已实装）
 - 添加歌词在未停止音乐播放时可滑动查看功能
 - 分页功能加入可输入特定页码跳转
-- 添加对vip歌曲的免费播放（2026.5.16：已实现，但鉴于项目使用人数太少，所以暂时不更新）
 - 添加播放时可进入歌单进行切换歌曲
 - 优化准备歌曲资源时的重试逻辑
 - 添加在搜索功能中加入特定歌曲加入歌单的功能
