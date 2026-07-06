@@ -707,6 +707,10 @@ def play_song(song_id, preload_next_song_id=None, preloaded_data=None):
         )
     
     def feed_audio_with_effects(player, audio_data, engine_ref, start_sec=0):
+        # 每次开始播放或跳转前，重置引擎状态，防止 IIR 残留导致爆音
+        if engine_ref['engine']:
+            engine_ref['engine'].reset_state()
+            
         try:
             # -ss 必须放在 -i 后面，否则 ffmpeg 会对 pipe 进行无效的 seek 导致卡死
             ffmpeg_cmd = [

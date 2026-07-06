@@ -121,7 +121,7 @@ class PeakingFilter:
         return out
 
 # ==============================================================================
-# 3. 怪兽级混响引擎 (极速版：零内存分配)
+# 3. 怪兽级混响引擎 (修复自激共振)
 # ==============================================================================
 class MonsterReverb:
     def __init__(self, sr=44100):
@@ -151,7 +151,6 @@ class MonsterReverb:
         self.cross_mix = 0.0
         self.width = 1.0
         
-        # 预分配滤波器系数数组 (极速核心)
         self.comb_bs = []
         self.comb_as = []
         self.ap_bs = []
@@ -180,14 +179,14 @@ class MonsterReverb:
         self.state_early_l = np.zeros(fir_len - 1)
         self.state_early_r = np.zeros(fir_len - 1)
 
-        # 核心修复：在 update_preset 中预分配所有系数，绝不在 process 中 np.zeros
         self.comb_bs = []
         self.comb_as = []
         for i, d in enumerate(self.comb_delays):
             g = 10 ** (-3.0 * d / (self.sr * max(0.1, rt60)))
-            self.comb_feedbacks[i] = np.clip(g + np.random.uniform(-0.02, 0.02), 0.0, 0.92)
+            # 【核心修复】：将反馈上限从 0.98 降至 0.85，彻底杜绝混响自激共振导致的能量飙升和抽吸！
+            self.comb_feedbacks[i] = np.clip(g + np.random.uniform(-0.02, 0.02), 0.0, 0.85)
             
-            b = np.array([1.0])  # 梳状滤波器分子只有 b[0]=1
+            b = np.array([1.0])
             a = np.zeros(d + 1); a[0] = 1.0; a[d] = -self.comb_feedbacks[i]
             self.comb_bs.append(b)
             self.comb_as.append(a)
@@ -239,7 +238,6 @@ class MonsterReverb:
         comb_sum_l = np.zeros_like(in_l)
         comb_sum_r = np.zeros_like(in_r)
         
-        # 极速核心：直接引用预分配的 self.comb_bs 和 self.comb_as，零内存分配！
         for i in range(8):
             y_l, self.state_combs_l[i] = signal.lfilter(self.comb_bs[i], self.comb_as[i], in_l, zi=self.state_combs_l[i])
             y_r, self.state_combs_r[i] = signal.lfilter(self.comb_bs[i], self.comb_as[i], in_r, zi=self.state_combs_r[i])
@@ -267,7 +265,7 @@ class MonsterReverb:
         return np.column_stack((out_l, out_r)).astype(np.float32)
 
 # ==============================================================================
-# 4. 核心引擎 (恢复震撼音量 & 消灭电流声)
+# 4. 核心引擎 (工业级平滑限幅 & 修复滤波器失忆)
 # ==============================================================================
 class UltimateAudioEngine:
     def __init__(self, sr=44100):
@@ -279,11 +277,63 @@ class UltimateAudioEngine:
         self.low_shelf = ShelfFilter(sr, 100, 'low', Q=1.2)
         self.high_shelf = ShelfFilter(sr, 8000, 'high', Q=1.2)
         self.reverb = MonsterReverb(sr)
-        self.pre_gain = 1.0
+        
+        self.samples_processed = 0
+        self.fade_in_len = int(0.05 * sr)
+        
+        # 【新增】：平滑限幅器的增益记忆 & 环绕声滤波器状态
+        self.current_gain = 1.0
+        self.surround_lp_zi = np.zeros(1)
+        
+        self._load_initial_config()
+
+    def _load_initial_config(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    cfg = json.load(f)
+                preset = cfg.get("preset", "无")
+                overlay = cfg.get("overlay", {})
+                env = cfg.get("env", "无")
+                
+                self.update_settings({
+                    "preset": preset,
+                    "低音微调": overlay.get("低音", 50),
+                    "高音微调": overlay.get("高音", 50),
+                    "环绕强度": overlay.get("环绕强度", 0),
+                    "环绕深度": overlay.get("环绕深度", 0),
+                    "环境": env,
+                })
+            except:
+                pass
+
+    def reset_state(self):
+        with self.lock:
+            self.samples_processed = 0
+            self.current_gain = 1.0
+            self.surround_lp_zi = np.zeros(1)
+            for eq in self.eq_filters: eq.zi = np.zeros((2, 2))
+            self.low_shelf.zi = np.zeros((2, 2))
+            self.high_shelf.zi = np.zeros((2, 2))
+            
+            self.reverb.state_combs_l = [np.zeros(d) for d in self.reverb.comb_delays]
+            self.reverb.state_combs_r = [np.zeros(d) for d in self.reverb.comb_delays]
+            self.reverb.state_aps_l = [np.zeros(d) for d in self.reverb.allpass_delays]
+            self.reverb.state_aps_r = [np.zeros(d) for d in self.reverb.allpass_delays]
+            self.reverb.state_damp_l = np.zeros(1)
+            self.reverb.state_damp_r = np.zeros(1)
+            self.reverb.state_early_l = np.zeros(len(self.reverb.fir_early) - 1)
+            self.reverb.state_early_r = np.zeros(len(self.reverb.fir_early) - 1)
+            self.reverb.delay_buf_l = np.zeros(self.reverb.max_pre_delay)
+            self.reverb.delay_buf_r = np.zeros(self.reverb.max_pre_delay)
+            self.reverb.delay_ptr = 0
 
     def update_settings(self, new_settings):
         with self.lock:
+            old_env = self.settings.get("环境")
             self.settings.update(new_settings)
+            new_env = self.settings["环境"]
+            
             preset_name = self.settings["preset"]
             base_gains = PRESET_DATA_10BAND.get(preset_name, PRESET_DATA_10BAND["无"]).copy()
             bass_offset = (self.settings["低音微调"] - 50) / 50.0 * 8.0
@@ -292,12 +342,11 @@ class UltimateAudioEngine:
             self.high_shelf.update_gain(treble_offset)
             for i, gain in enumerate(base_gains): self.eq_filters[i].update_gain(gain)
             
-            # 核心修复：恢复响度补偿！不再过度衰减，保证声音洪亮
-            max_gain = max(0, max(base_gains) + max(0, bass_offset) + max(0, treble_offset))
-            # 只补偿一半的 EQ 增益衰减，并额外增加 1.5 倍基础音量
-            self.pre_gain = (10 ** (-max_gain / 40.0)) * 1.5 
+            # 【核心修复】：固定 1.2 倍基础响度，保证声音洪亮，把防破音交给平滑限幅器
+            self.pre_gain = 1.2 
             
-            self.reverb.update_preset(self.settings["环境"])
+            if old_env != new_env:
+                self.reverb.update_preset(new_env)
 
     def warmup(self):
         pass
@@ -322,7 +371,10 @@ class UltimateAudioEngine:
             mid = (data[:, 0] + data[:, 1]) * 0.5
             side = (data[:, 0] - data[:, 1]) * 0.5
             alpha_lp = 0.15 
-            low_mid = signal.lfilter([alpha_lp], [1, -(1 - alpha_lp)], mid, axis=0)
+            
+            # 【核心修复 1】：传递 zi 状态！彻底消灭每 92ms 一次的低频阶跃冲击（周期性抽吸）
+            low_mid, self.surround_lp_zi = signal.lfilter([alpha_lp], [1, -(1 - alpha_lp)], mid, zi=self.surround_lp_zi, axis=0)
+            
             side_wide = side * (1.0 + surround_intensity * 1.5)
             data[:, 0] = low_mid + (mid - low_mid) + side_wide
             data[:, 1] = low_mid + (mid - low_mid) - side_wide
@@ -330,19 +382,34 @@ class UltimateAudioEngine:
         if wet > 0:
             data = self.reverb.process(data, wet)
 
-        # 核心修复：激进的 tanh 软削波限幅器。
-        # 配合前面 1.5 倍的 pre_gain，这里把超过 0.95 的峰值“揉”进去，声音极大且绝对没有滋滋声！
-        threshold = 0.95
-        mask = np.abs(data) > threshold
-        if np.any(mask):
-            sign = np.sign(data[mask])
-            over = np.abs(data[mask]) - threshold
-            data[mask] = sign * (threshold + np.tanh(over * 3.0) * (1.0 - threshold))
+        if self.samples_processed < self.fade_in_len:
+            n = len(data)
+            remaining = self.fade_in_len - self.samples_processed
+            fade_len = min(n, remaining)
+            fade = np.linspace(0.0, 1.0, fade_len).reshape(-1, 1)
+            data[:fade_len] *= fade
+            self.samples_processed += n
+        else:
+            self.samples_processed += len(data)
+
+        # 【核心修复 2】：工业级线性平滑包络限幅器 (Ramp Limiter)
+        # 彻底抛弃破坏波形的 mask 逐点压缩！
+        # 计算当前块的目标增益，并使用 np.linspace 在 92ms 内线性平滑过渡。
+        # 这样既保证了波形不被扭曲（无高频谐波/滋滋声），又保证了增益变化是连续的（绝对不忽高忽低）！
+        peak = np.max(np.abs(data))
+        target_gain = 1.0
+        if peak > 0.98:
+            target_gain = 0.98 / peak
+            
+        n = len(data)
+        gain_ramp = np.linspace(self.current_gain, target_gain, n).reshape(-1, 1)
+        data *= gain_ramp
+        self.current_gain = target_gain
 
         return np.clip(data, -1.0, 1.0).astype(np.float32)
 
 # ==============================================================================
-# 5. TUI 界面 (保持原样)
+# 5. TUI 界面
 # ==============================================================================
 class UltimateTUI:
     def __init__(self, engine):
@@ -410,7 +477,7 @@ class UltimateTUI:
 
         layout = Layout()
         layout.split_column(
-            Layout(Panel("音效引擎 V3", style="white on blue"), ratio=1),
+            Layout(Panel("🎵 网易云音效引擎 V4", style="white on blue"), ratio=1),
             Layout(name="main", ratio=8),
             Layout(Panel("Tab 切换 | WASD 选择调节 | Q 退出", style="dim"), ratio=1)
         )
