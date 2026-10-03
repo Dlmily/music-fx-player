@@ -139,13 +139,15 @@ python v.py
 
 ## 了解其他产品
 
-[DL报刊论坛](https://dlbkltos.s7123.xyz/)
+1. [DL报刊论坛](https://dlbkltos.s7123.xyz/)
 
-[番茄小说下载器精简版](https://github.com/Dlmily/Tomato-Novel-Downloader-Lite)
+2. [番茄小说下载器精简版](https://github.com/Dlmily/Tomato-Novel-Downloader-Lite)
 
-[小米手环七图像转换工具](https://github.com/Dlmily/ImageToMiBand7)
+3. [小米手环七图像转换工具](https://github.com/Dlmily/ImageToMiBand7)
 
-[绝区零般岳角色搓招攻略](https://github.com/Dlmily/zzz-Banyue-character-guide)
+4. [支持音效的命令行网易云播放器](https://github.com/Dlmily/music-fx-player)
+
+5. [炒股模拟器](https://github.com/Dlmily/finscope)
 
 ## 关于开源协议
 
@@ -187,4 +189,4 @@ python v.py
 - 分页功能加入可输入特定页码跳转
 - 添加播放时可进入歌单进行切换歌曲
 - 添加在搜索功能中加入特定歌曲加入歌单的功能
-
+- 支持外挂卷积文件以提升音效
