@@ -145,9 +145,7 @@ python v.py
 
 3. [小米手环七图像转换工具](https://github.com/Dlmily/ImageToMiBand7)
 
-4. [支持音效的命令行网易云播放器](https://github.com/Dlmily/music-fx-player)
-
-5. [炒股模拟器](https://github.com/Dlmily/finscope)
+4. [炒股模拟器](https://github.com/Dlmily/finscope)
 
 ## 关于开源协议
 
